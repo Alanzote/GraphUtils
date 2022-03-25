@@ -1,4 +1,7 @@
-﻿using SDL2;
+﻿using System.Drawing;
+using System.Linq;
+using System.Runtime.InteropServices;
+using SDL2;
 
 namespace GraphUtils;
 
@@ -10,6 +13,32 @@ public static class GraphView {
 
 	// The Color Seed of Graph View.
 	private static readonly int ColorSeed = 1701;
+
+	// Set Color in SDL using the C# Default Color System.
+	private static void SDL_SetColor(IntPtr Renderer, Color Col) {
+		// Set Render Draw Color.
+		SDL.SDL_SetRenderDrawColor(Renderer, Col.R, Col.G, Col.B, Col.A);
+	}
+
+	// Gets the Color in SDL using the C# Default Color System.
+	private static Color SDL_GetColor(IntPtr Renderer) {
+		// Call Get Color.
+		SDL.SDL_GetRenderDrawColor(Renderer, out byte R, out byte G, out byte B, out byte A);
+
+		// Return Color.
+		return Color.FromArgb(A, R, G, B);
+	}
+
+	// Converts Color to SDL_Color.
+	private static SDL.SDL_Color SDL_ToColor(Color Col) {
+		// Return new SDl Color.
+		return new SDL.SDL_Color {
+			r = Col.R,
+			g = Col.G,
+			b = Col.B,
+			a = Col.A
+		};
+	}
 
 	// Draws a SDL Circle.
 	private static void SDL_DrawCircle(IntPtr Renderer, int CenterX, int CenterY, int Radius) {
@@ -53,20 +82,44 @@ public static class GraphView {
 		}
 	}
 
+	// Creates the Text Texture.
+	private static void SDL_CreateText(IntPtr Renderer, IntPtr Font, string text, Color Col, out IntPtr Texture, out int w, out int h) {
+		// Create Surface.
+		IntPtr Surface = SDL_ttf.TTF_RenderText_Solid_Wrapped(Font, text, SDL_ToColor(Col), 0);
+
+		// Create Texture.
+		Texture = SDL.SDL_CreateTextureFromSurface(Renderer, Surface);
+
+		// Get Surface Data.
+		SDL.SDL_Surface Surf_Data = Marshal.PtrToStructure<SDL.SDL_Surface>(Surface);
+
+		// Set Width and Height.
+		w = Surf_Data.w;
+		h = Surf_Data.h;
+
+		// Free Surface.
+		SDL.SDL_FreeSurface(Surface);
+	}
+
 	// Sets to the Random Color.
-	private static void SDL_SetToRandomColor(IntPtr Renderer, Random ColRand) {
+	private static void SDL_SetToRandomColor(IntPtr Renderer, Random ColRand, bool Apply = true) {
 		// Create Color Buffer and Get next 3 Random Bytes.
 		byte[] ColBuf = new byte[3];
 		ColRand.NextBytes(ColBuf);
 
-		// Set to Random Color.
-		SDL.SDL_SetRenderDrawColor(Renderer, ColBuf[0], ColBuf[1], ColBuf[2], 0xF0);
+		// Set to Random Color, if we should apply.
+		// Apply should be False if we are just randomizing to keep the Seed Step, but we aren't using the color.
+		if (Apply)
+			SDL.SDL_SetRenderDrawColor(Renderer, ColBuf[0], ColBuf[1], ColBuf[2], 0xFF);
 	}
 
 	// Displays a Graph.
 	public static void Display(this Graph G) {
 		// Init SDL.
 		SDL.SDL_Init(SDL.SDL_INIT_VIDEO);
+
+		// Init TTF.
+		SDL_ttf.TTF_Init();
 
 		// Create SDL Window.
 		var Window = SDL.SDL_CreateWindow("GraphUtils",
@@ -84,8 +137,35 @@ public static class GraphView {
 		// The Movement Coeficient.
 		int MovementSpeed = 10;
 
+		// Current Selection.
 		Node? Current = null;
 		int? CurrentIdx = null;
+
+		// The Current Zoom.
+		int Zoom = 1;
+
+		// Open Arial .tff.
+		IntPtr Font = SDL_ttf.TTF_OpenFont("./Assets/arial.ttf", 12);
+
+		// Dictionary of Node reference and text.
+		Dictionary<Node, Tuple<IntPtr, IntPtr, int, int>> NodeText = new Dictionary<Node, Tuple<IntPtr, IntPtr, int, int>>();
+
+		// Create Help Text.
+		SDL_CreateText(Renderer, Font, "Use Arrow Keys to Move.\nZ, X to Increase/Decrease Zoom\nC to Cycle Selected Node (Shows as White)", Color.White, out IntPtr HelpTexture, out int HelpW, out int HelpH);
+
+		// Create Help Rect.
+		SDL.SDL_Rect HelpRect = new SDL.SDL_Rect {
+			w = HelpW,
+			h = HelpH,
+			x = 0,
+			y = 768 - HelpH
+		};
+
+		// Allocate Rect Ptr.
+		IntPtr HelpRectPtr = Marshal.AllocHGlobal(Marshal.SizeOf<SDL.SDL_Rect>());
+
+		// Copy Rect.
+		Marshal.StructureToPtr(HelpRect, HelpRectPtr, false);
 
 		// Loop until...
 		while (true) {
@@ -127,27 +207,38 @@ public static class GraphView {
 							// Key Right!
 							case SDL.SDL_Keycode.SDLK_RIGHT: {
 								// Decrease Offset.
-								OffsetX += MovementSpeed;
+								OffsetX -= MovementSpeed;
 							} break;
 
 							// Key C for Cycle.
 							case SDL.SDL_Keycode.SDLK_c: {
-								// Cycle Selection.
+								// Check for Null..
 								if (Current == null) {
+									// Get First Node, set first index.
 									Current = G.GetAllNodes().First();
 									CurrentIdx = 0;
 								} else {
+									// Get all Nodes.
 									var AllNodes = G.GetAllNodes();
 
-									CurrentIdx += 1;
+									// Increase Current Idx.
+									CurrentIdx = (CurrentIdx + 1) % AllNodes.Count;
 
-									if (CurrentIdx >= AllNodes.Count)
-										CurrentIdx = 0;
-
+									// Set Current.
 									Current = AllNodes[CurrentIdx!.Value];
 								}
+							} break;
 
-								Console.WriteLine(Current!.Label);
+							// Plus for Zoom!
+							case SDL.SDL_Keycode.SDLK_z: {
+								// Add to Zoom.
+								Zoom += 1;
+							} break;
+
+							// Minus for Less Zoom!
+							case SDL.SDL_Keycode.SDLK_x: {
+								// Remove from Zoom.
+								Zoom = Math.Max(1, Zoom - 1);
 							} break;
 						}
 					} break;
@@ -184,29 +275,59 @@ public static class GraphView {
 				SDL_SetToRandomColor(Renderer, ColRand);
 
 				// Draw the Line.
-				SDL.SDL_RenderDrawLine(Renderer, x1 + OffsetX, y1 + OffsetY, x2 + OffsetX, y2 + OffsetY);
+				SDL.SDL_RenderDrawLine(Renderer, (x1 + OffsetX) * Zoom, (y1 + OffsetY) * Zoom, (x2 + OffsetX) * Zoom, (y2 + OffsetY) * Zoom);
 			}
-
-			// Set Draw Color to White.
-			SDL.SDL_SetRenderDrawColor(Renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 
 			// For Each Node...
 			foreach (var Node in Nodes) {
 				// Get the Node Casted.
 				var NodeC = (Node<Tuple<int, int>>) Node;
 
-				if (Current != null && Node == Current)
-					SDL.SDL_SetRenderDrawColor(Renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-				else
-					SDL_SetToRandomColor(Renderer, ColRand);
+				// Check if this Node is Selected.
+				bool IsSelected = Current != null && Node == Current;
+
+				// Set to Random Color.
+				SDL_SetToRandomColor(Renderer, ColRand, !IsSelected);
+
+				// Set Color to White if Selected.
+				if (IsSelected)
+					SDL_SetColor(Renderer, Color.White);
 
 				// Draw Each Node.
-				SDL_DrawCircle(Renderer, NodeC.Value.Item1 + OffsetX, NodeC.Value.Item2 + OffsetY, 5);
-				//SDL.SDL_RenderDrawPoint(Renderer, NodeC.Value.Item1 + OffsetX, NodeC.Value.Item2 + OffsetY);
+				SDL_DrawCircle(Renderer, (NodeC.Value.Item1 + OffsetX) * Zoom, (NodeC.Value.Item2 + OffsetY) * Zoom, 5 * Zoom);
+
+				// Check for Node Text.
+				if (!NodeText.ContainsKey(Node)) {
+					// Create it.
+					SDL_CreateText(Renderer, Font, Node.Label, Color.White, out IntPtr Texture, out int W, out int H);
+
+					// Allocate Rect Memory.
+					IntPtr RectPtr = Marshal.AllocHGlobal(Marshal.SizeOf<SDL.SDL_Rect>());
+
+					// Add it.
+					NodeText.Add(Node, Tuple.Create(Texture, RectPtr, W, H));
+				}
+
+				// Create Rectagle.
+				SDL.SDL_Rect Rect = new SDL.SDL_Rect {
+					w = NodeText[Node].Item3 * Zoom,
+					h = NodeText[Node].Item4 * Zoom,
+					x = (NodeC.Value.Item1 + OffsetX - NodeText[Node].Item3 / 2) * Zoom,
+					y = (NodeC.Value.Item2 + OffsetY + 10) * Zoom
+				};
+
+				// Copy Struct to Memory.
+				Marshal.StructureToPtr(Rect, NodeText[Node].Item2, false);
+
+				// Copy Text to Screen.
+				SDL.SDL_RenderCopy(Renderer, NodeText[Node].Item1, IntPtr.Zero, NodeText[Node].Item2);
 			}
 
+			// Copy Help Text to Screen.
+			SDL.SDL_RenderCopy(Renderer, HelpTexture, IntPtr.Zero, HelpRectPtr);
+
 			// Set Color to What we Had Before.
-			SDL.SDL_SetRenderDrawColor(Renderer, 0x00, 0x00, 0x00, 0xFF);
+			SDL_SetColor(Renderer, Color.Black);
 
 			// Render.
 			SDL.SDL_RenderPresent(Renderer);

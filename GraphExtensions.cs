@@ -249,7 +249,10 @@ public static class GraphExtensions {
     }
 
     // Breadth Search.
-    public static void BreadthSearch(this Graph G, Node From, Node To, List<Node> Result) {
+    public static void BreadthSearch(this Graph G, Node From, Node To, out List<Node> Result) {
+        // Create Result.
+        Result = new List<Node>();
+
         // Create Visited and Queue.
         HashSet<Node> Visisted = new HashSet<Node>();
         Queue<Node> Queue = new Queue<Node>();
