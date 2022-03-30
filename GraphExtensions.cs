@@ -205,9 +205,9 @@ public static class GraphExtensions {
     }
 
     // Searches in Depth.
-    private static bool DepthSearch(List<Node> Visited, List<Node> Path, Graph G, Node Current, Node Target) {
-        // Check for Visited.
-        if (Visited.Contains(Current))
+    private static bool DepthSearch(List<Node> Visited, List<Node> Path, Graph G, Node Current, Node Target, int? Limit = null) {
+        // Check for Visited or Limit.
+        if (Visited.Contains(Current) || (Limit.HasValue && Limit <= 0))
             return false;
 
         // Add to Visisted.
@@ -221,10 +221,14 @@ public static class GraphExtensions {
             // Get all connetions...
             G.GetConnections(Current, out List<Node> Connections);
 
+            // Decrease Limit.
+            if (Limit.HasValue)
+                Limit--;
+
             // For Each connection, recursive.
             foreach (var Conn in Connections) {
                 // Call Depth Search.
-                if (DepthSearch(Visited, Path, G, Conn, Target))
+                if (DepthSearch(Visited, Path, G, Conn, Target, Limit))
                     return true;
             }
 
@@ -240,12 +244,39 @@ public static class GraphExtensions {
     }
 
     // Searches in Depth.
-    public static bool DepthSearch(this Graph G, Node From, Node Target, out List<Node> Path) {
+    public static bool DepthSearch(this Graph G, Node From, Node Target, out List<Node> Path, int? Limit = null) {
         // Create Path.
         Path = new List<Node>();
 
         // Return the Depth Search.
-        return DepthSearch(new List<Node>(), Path, G, From, Target);
+        return DepthSearch(new List<Node>(), Path, G, From, Target, Limit);
+    }
+
+    // Searches with Iterative Deepening. Since this algorithim can run idefinately, it is required to give a Limit in Height to consider a failure to find a path.
+    public static bool IterativeDeepening(this Graph G, Node From, Node Target, out List<Node> Path, int Limit = 5) {
+        // The Current Iteration.
+        int Current = 0;
+
+        // Loop until...
+        while (true) {
+            // Increase Current.
+            Current++;
+
+            // If we hit our limit, we stop the algorithim.
+            if (Current > Limit) {
+                // Return Empty Path.
+                Path = new List<Node>();
+
+                // Return false.
+                return false;
+            }
+
+            // Otherwise, make a Depth Search based on Current Limit.
+            if (G.DepthSearch(From, Target, out Path, Current))
+                return true;
+
+            // If the Depth Search failed, we continue to next level.
+        }
     }
 
     // Breadth Search.
