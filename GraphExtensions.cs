@@ -279,6 +279,85 @@ public static class GraphExtensions {
         }
     }
 
+    // Searches using Heuristic Values.
+    private static bool HeuristicSearch(List<Node> Visited, List<Node> Path, Graph G, Node Current, Node Target, Dictionary<Node, int> HeuristicValues, bool UseWeights = false, int? Limit = null) {
+        // Check for Visited or Limit.
+        if (Visited.Contains(Current) || (Limit.HasValue && Limit <= 0))
+            return false;
+
+        // Add to Visisted.
+        Visited.Add(Current);
+
+        // Add Current to Path.
+        Path.Add(Current);
+
+        // Check for Target.
+        if (Current != Target) {
+            // Get all connetions...
+            G.GetConnections(Current, out List<Node> Connections);
+
+            // Decrease Limit.
+            if (Limit.HasValue)
+                Limit--;
+
+            // To Grab our Target Node...
+            Node GoTo = Connections
+                .Select(x => Tuple.Create(x, HeuristicValues[x] + (UseWeights ? G.GetConnection(Current, x)!.Weight : 0))) // We first Create Tuples based on the Node itself and their Heuristic Values.
+                                                                                                                     // If we have Use A, we will increment the connection weight to it.
+                .OrderBy(x => x.Item2) // We order by the Heuristic Values (ascending).
+                .First().Item1; // We take the first item on our list 
+
+            // Call Heuristic Search.
+            if (HeuristicSearch(Visited, Path, G, GoTo, Target, HeuristicValues, UseWeights, Limit))
+                return true;
+
+            // Remove from Path. (We backtrack, but in theory this shouldn't happen if we setup our heuristic values correctly)
+            Path.Remove(Current);
+
+            // Return Failure.
+            return false;
+        }
+
+        // Return true.
+        return true;
+    }
+
+    // Searches using Heuristic Values.
+    public static bool HeuristicSearch(this Graph G, Node From, Node Target, Dictionary<Node, int> HeuristicValues, out List<Node> Path, bool UseWeights = false, int? Limit = null) {
+        // Create Path.
+        Path = new List<Node>();
+
+        // Return the Depth Search.
+        return HeuristicSearch(new List<Node>(), Path, G, From, Target, HeuristicValues, UseWeights, Limit);
+    }
+
+    // Searches with Iterative Deepening with Heuristic Values. Since this algorithim can run idefinately, it is required to give a Limit in Height to consider a failure to find a path.
+    public static bool HeuristicIterativeDeepening(this Graph G, Node From, Node Target, Dictionary<Node, int> HeuristicValues, out List<Node> Path, int Limit = 5, bool UseWeights = false) {
+        // The Current Iteration.
+        int Current = 0;
+
+        // Loop until...
+        while (true) {
+            // Increase Current.
+            Current++;
+
+            // If we hit our limit, we stop the algorithim.
+            if (Current > Limit) {
+                // Return Empty Path.
+                Path = new List<Node>();
+
+                // Return false.
+                return false;
+            }
+
+            // Otherwise, make a Heuristic Search based on Current Limit.
+            if (G.HeuristicSearch(From, Target, HeuristicValues, out Path, UseWeights, Current))
+                return true;
+
+            // If the Heuristic Search failed, we continue to next level.
+        }
+    }
+
     // Breadth Search.
     public static void BreadthSearch(this Graph G, Node From, Node To, out List<Node> Result) {
         // Create Result.
