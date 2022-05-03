@@ -5,7 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Configurations>Trabalho03;Trabalho04</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
