@@ -871,4 +871,96 @@ public static class GraphExtensions {
         // Return Graph.
         return G;
     }
+
+    // Executes the Alpha Beta algorithim.
+    private static int AlphaBeta(Graph G, Node<int> Current, int Depth, ref int Alpha, ref int Beta, bool Max) {
+        // Check for Depth.
+        if (Depth <= 0)
+            return Current.V1;
+
+        // Grab Connections that continue towards the end of thr graph.
+        var Connections = G.GetConnections(Current, Connection.EDirection.A_to_B).ToList();
+
+        // If no connections, return current heuristic value.
+        if (Connections.Count <= 0)
+            return Current.V1;
+
+        // Start Val at specific position.
+        int val = Max ? int.MinValue : int.MaxValue;
+
+        // For Each connection...
+        foreach (var conn in Connections) {
+            // Cast connection.
+            var conn_cst = conn as Node<int>;
+
+            // If cast invalid, ignore node.
+            if (conn_cst == null)
+                continue;
+
+            // Calculate alphabeta value.
+            var alphabeta = AlphaBeta(G, conn_cst, Depth - 1, ref Alpha, ref Beta, !Max);
+
+            // Calculate Value.
+            val = Max ? Math.Max(val, alphabeta) : Math.Min(val, alphabeta);
+
+            // Check for Max/Min.
+            if (Max) {
+                // Check for Beta Cutoff.
+                if (val >= Beta)
+                    break;
+
+                // Update Alpha Value.
+                Alpha = Math.Max(Alpha, val);
+			} else {
+                // Check for Alpha Cutoff.
+                if (val <= Alpha)
+                    break;
+
+                // Update Beta Value.
+                Beta = Math.Min(Beta, val);
+			}
+		}
+
+        // Return Value.
+        return val;
+	}
+
+    // Runs an Alpha/Beta algorithim searching for the best possible path to victory.
+    public static Node<int>? AlphaBeta(Graph G, Node<int> StartNode, int Depth) {
+        // Result Node.
+        Node<int>? MaxNode = null;
+
+        // The Current Result Max Value we are tracking.
+        int MaxValue = int.MinValue;
+
+        // Alpha/Beta Values for Cutoff.
+        int Alpha = int.MinValue;
+        int Beta = int.MaxValue;
+
+        // Grab all connections... one way.
+        var Conns = G.GetConnections(StartNode, Connection.EDirection.A_to_B).ToList();
+
+        // For each connection...
+        foreach (var conn in Conns) {
+            // Cast to node type.
+            var cnn_cst = conn as Node<int>;
+
+            // If wrong node type, ignore.
+            if (cnn_cst == null)
+                continue;
+
+            // Runs alpha beta, searching for all Min Values.
+            int value = AlphaBeta(G, cnn_cst, Depth - 1, ref Alpha, ref Beta, false);
+
+            // From the min value, we build the max value.
+            if (MaxNode == null || MaxValue < value) {
+                // Sets.
+                MaxNode = cnn_cst;
+                MaxValue = value;
+			}
+        }
+
+        // Return the Node to run.
+        return MaxNode;
+    }
 }

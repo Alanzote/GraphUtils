@@ -14,14 +14,27 @@ public class Node {
 }
 
 // A node, with a generic value container.
-public class Node<T> : Node {
+public class Node<T1> : Node {
 	
 	// Holds the Value.
-	public T Value { get; set; }
+	public T1 V1 { get; set; }
 
 	// Constructor.
-	public Node(string Label, T Value) : base(Label) {
+	public Node(string Label, T1 V1) : base(Label) {
 		// Set Value.
-		this.Value = Value;
+		this.V1 = V1;
+	}
+}
+
+// A node, with two generic value containers.
+public class Node<T1, T2> : Node<T1> {
+
+	// Hold the 2nd Value.
+	public T2 V2 { get; set; }
+
+	// Construtor.
+	public Node(string Label, T1 V1, T2 V2) : base(Label, V1) {
+		// Set Value.
+		this.V2 = V2;
 	}
 }

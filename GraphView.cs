@@ -167,10 +167,10 @@ public static class GraphView {
 				var NodeB = (Node<Tuple<int, int>>) Conn.NodeB;
 
 				// Calculate Positions.
-				var x1 = NodeA.Value.Item1;
-				var y1 = NodeA.Value.Item2;
-				var x2 = NodeB.Value.Item1;
-				var y2 = NodeB.Value.Item2;
+				var x1 = NodeA.V1.Item1;
+				var y1 = NodeA.V1.Item2;
+				var x2 = NodeB.V1.Item1;
+				var y2 = NodeB.V1.Item2;
 
 				// Set to Random Color.
 				SDL_Utils.SDL_SetToRandomColor(Renderer, ColRand);
@@ -195,7 +195,7 @@ public static class GraphView {
 					SDL_Utils.SDL_SetColor(Renderer, Color.White);
 
 				// Draw Each Node.
-				SDL_Utils.SDL_DrawCircle(Renderer, (NodeC.Value.Item1 + OffsetX) * Zoom, (NodeC.Value.Item2 + OffsetY) * Zoom, 5 * Zoom);
+				SDL_Utils.SDL_DrawCircle(Renderer, (NodeC.V1.Item1 + OffsetX) * Zoom, (NodeC.V1.Item2 + OffsetY) * Zoom, 5 * Zoom);
 
 				// Check for Node Text.
 				if (!NodeText.ContainsKey(Node)) {
@@ -213,8 +213,8 @@ public static class GraphView {
 				SDL.SDL_Rect Rect = new SDL.SDL_Rect {
 					w = NodeText[Node].Item3 * Zoom,
 					h = NodeText[Node].Item4 * Zoom,
-					x = (NodeC.Value.Item1 + OffsetX - NodeText[Node].Item3 / 2) * Zoom,
-					y = (NodeC.Value.Item2 + OffsetY + 10) * Zoom
+					x = (NodeC.V1.Item1 + OffsetX - NodeText[Node].Item3 / 2) * Zoom,
+					y = (NodeC.V1.Item2 + OffsetY + 10) * Zoom
 				};
 
 				// Copy Struct to Memory.

@@ -123,6 +123,40 @@ public class Graph {
 		return Return.Count;
 	}
 
+	// Gets the Connections of a Specific Node, with references, based on a direction.
+	public IEnumerable<Node> GetConnections(Node N, Connection.EDirection Direction) {
+		// Check for Connections.
+		if (!Connections.ContainsKey(N))
+			yield break;
+
+		// For each connection...
+		foreach (var Conn in Connections[N].Values) {
+			// Make sure our direction fits.
+			if (Conn.Direction != Direction)
+				continue;
+
+			// The node we should add.
+			Node? ResultNode = Direction switch {
+				// For two way, return just the other one.
+				Connection.EDirection.TwoWay => Conn.NodeA == N ? Conn.NodeB : Conn.NodeA,
+
+				// If it is A to B, return B.
+				Connection.EDirection.A_to_B => Conn.NodeA == N ? Conn.NodeB : null,
+
+				// If it is B to A, return A.
+				Connection.EDirection.B_to_A => Conn.NodeB == N ? Conn.NodeA : null,
+
+				// Unknown value.
+				_ => throw new NotImplementedException()
+			};
+
+			// Return Connection if it is not null.
+			// (Returns Several thanks to .NET)
+			if (ResultNode != null)
+				yield return ResultNode;
+		}
+	}
+
 	// Gets the Connections of a Specific Node, with connection references.
 	public int GetConnectionsAsConn(Node N, out List<Connection> Return) {
 		// Check for COnnections.
